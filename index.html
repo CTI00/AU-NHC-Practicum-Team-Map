@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interactive Map of Housing Policies</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 600px; }
+  </style>
+</head>
+<body>
+  <h1>Interactive Map of Housing Policies</h1>
+  <div id="map"></div>
+  <div>
+    <label for="policySelect">Select a Policy: </label>
+    <select id="policySelect">
+      <option value="ADU">ADU</option>
+      <option value="ARPA">ARPA</option>
+      <option value="Bond_Caps">Bond Caps</option>
+      <option value="CCD">CCD</option>
+      <option value="EAH">EAH</option>
+      <option value="HCV">HCV</option>
+      <option value="HTF">HTF</option>
+      <option value="Insurance">Insurance</option>
+      <option value="IZ">IZ</option>
+      <option value="LIHTC">LIHTC</option>
+      <option value="Major_Legi">Major Legislation</option>
+      <option value="MH">MH</option>
+      <option value="MMP">MMP</option>
+      <option value="P_H_Restri">P/H Restrictions</option>
+      <option value="Pilot">Pilot</option>
+      <option value="QC">QC</option>
+      <option value="Rent_Contr">Rent Control</option>
+      <option value="Tenant_Pro">Tenant Protections</option>
+      <option value="TribalA">TribalA</option>
+      <option value="Zoning">Zoning</option>
+    </select>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    var map = L.map('map').setView([37.8, -96], 4);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let geojsonLayer;
+
+    // Function to determine color
+    function getColor(d) {
+      return d === 1 ? 'green' : 'red';
+    }
+
+    // Function to style states
+    function styleFeature(policy) {
+      return function (feature) {
+        return {
+          fillColor: getColor(feature.properties[policy]),
+          weight: 1,
+          opacity: 1,
+          color: 'white',
+          fillOpacity: 0.7
+        };
+      };
+    }
+
+    // Load and draw GeoJSON
+    function loadMap(policy) {
+      fetch('data.json')
+        .then(response => response.json())
+        .then(data => {
+          if (geojsonLayer) {
+            map.removeLayer(geojsonLayer);
+          }
+          geojsonLayer = L.geoJSON(data, {
+            style: styleFeature(policy),
+            onEachFeature: function (feature, layer) {
+              layer.bindPopup(feature.properties.NAME + '<br>' + policy + ': ' + feature.properties[policy]);
+            }
+          }).addTo(map);
+        })
+        .catch(error => console.error('Error loading GeoJSON:', error));
+    }
+
+    // Initial map
+    loadMap('ADU');
+
+    // Policy selector
+    document.getElementById('policySelect').addEventListener('change', function (e) {
+      const selected = e.target.value;
+      loadMap(selected);
+    });
+  </script>
+</body>
+</html>
