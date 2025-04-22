@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map of Housing Policies</title>
+    <meta charset="UTF-8" />
+    <title>Housing Policies Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        #map {
-            width: 100%;
-            height: 600px;
-        }
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; }
         #dropdown {
             position: absolute;
             top: 10px;
@@ -17,12 +15,12 @@
             z-index: 1000;
             background: white;
             padding: 10px;
-            font-size: 14px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
-    <h1>Map of Housing Policies</h1>
     <div id="dropdown">
         <label for="policy-select">Choose a policy:</label>
         <select id="policy-select">
@@ -32,69 +30,74 @@
             <option value="HCV">HCV</option>
             <option value="LIHTC">LIHTC</option>
             <option value="Rent_Contr">Rent Control</option>
-            <!-- Add other variables as needed -->
+            <!-- Add other policy variables here -->
         </select>
     </div>
-
     <div id="map"></div>
 
-    <!-- Include Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <!-- Include your GeoJSON file from GitHub raw URL -->
-    <script src="https://raw.githubusercontent.com/CTI00/AU-NHC-Practicum-Team-Map/refs/heads/main/housing_policiesAU.json"></script>
-
     <script>
-        var map = L.map('map').setView([18.217648, -66.410799], 7); // Centered on Puerto Rico
+        const map = L.map("map").setView([37.8, -96], 4);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        var geojsonLayer; // To hold the GeoJSON layer
+        let geojsonLayer;
+        const select = document.getElementById("policy-select");
 
-        // Function to get color based on selected property value
-        function getColor(value) {
-            if (value === 0) return "#ff0000"; // Red for no policy
-            else if (value > 0 && value <= 10) return "#ffa500"; // Orange for low values
-            else return "#008000"; // Green for higher values
+        // Color scale logic
+        function getColor(val) {
+            return val > 0 ? "#2E8B57" : "#FF6347";
         }
 
-        // Define style based on selected policy value
-        function style(feature, selectedProperty) {
-            var value = feature.properties[selectedProperty];
+        function styleFeature(feature, selectedProp) {
+            const val = feature.properties[selectedProp];
             return {
-                color: getColor(value),
+                fillColor: getColor(val),
                 weight: 1,
                 opacity: 1,
+                color: "white",
+                dashArray: "3",
                 fillOpacity: 0.7
             };
         }
 
-        // Function to update map based on selected policy
-        function updateMap(selectedProperty) {
-            if (geojsonLayer) {
-                geojsonLayer.clearLayers(); // Clear existing layer
-            }
-
-            geojsonLayer = L.geoJSON(housing_policiesAU, {
-                style: function (feature) {
-                    return style(feature, selectedProperty);
-                },
-                onEachFeature: function (feature, layer) {
-                    layer.bindPopup("<strong>" + feature.properties.NAME + "</strong><br>" +
-                        selectedProperty + ": " + feature.properties[selectedProperty]);
-                }
-            }).addTo(map);
+        function onEachFeature(feature, layer, selectedProp) {
+            layer.bindPopup(
+                `<strong>${feature.properties.NAME}</strong><br>${selectedProp}: ${feature.properties[selectedProp]}`
+            );
         }
 
-        // Initial map with the "ADU" property
-        updateMap("ADU");
+        function renderMap(geojson, selectedProp) {
+            if (geojsonLayer) map.removeLayer(geojsonLayer);
 
-        // Change the map based on selected policy from the dropdown
-        document.getElementById('policy-select').addEventListener('change', function (e) {
-            var selectedPolicy = e.target.value;
-            updateMap(selectedPolicy);
-        });
+            geojsonLayer = L.geoJSON(geojson, {
+                style: (feature) => styleFeature(feature, selectedProp),
+                onEachFeature: (feature, layer) => onEachFeature(feature, layer, selectedProp)
+            }).addTo(map);
+
+            map.fitBounds(geojsonLayer.getBounds());
+        }
+
+        // Load GeoJSON dynamically
+        async function loadMapData(selectedProp) {
+            const url = "https://raw.githubusercontent.com/CTI00/AU-NHC-Practicum-Team-Map/refs/heads/main/housing_policiesAU.json"; // Replace this!
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderMap(data, selectedProp);
+
+                // Listen for dropdown change
+                select.addEventListener("change", () => {
+                    renderMap(data, select.value);
+                });
+            } catch (error) {
+                alert("Failed to load GeoJSON: " + error.message);
+            }
+        }
+
+        loadMapData(select.value);
     </script>
 </body>
 </html>
