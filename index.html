@@ -4,17 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map of Housing Policies</title>
-    <!-- Include Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         #map {
             width: 100%;
             height: 600px;
         }
+        #dropdown {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <h1>Map of Housing Policies</h1>
+    <div id="dropdown">
+        <label for="policy-select">Choose a policy:</label>
+        <select id="policy-select">
+            <option value="ADU">ADU</option>
+            <option value="ARPA">ARPA</option>
+            <option value="Bond_Caps">Bond Caps</option>
+            <option value="HCV">HCV</option>
+            <option value="LIHTC">LIHTC</option>
+            <option value="Rent_Contr">Rent Control</option>
+            <!-- Add other variables as needed -->
+        </select>
+    </div>
+
     <div id="map"></div>
 
     <!-- Include Leaflet JS -->
@@ -23,38 +44,57 @@
     <script src="https://raw.githubusercontent.com/CTI00/AU-NHC-Practicum-Team-Map/refs/heads/main/housing_policiesAU.json"></script>
 
     <script>
-        // Create the map object
-        var map = L.map('map').setView([18.217648, -66.410799], 7); // Centered on Puerto Rico as example
+        var map = L.map('map').setView([18.217648, -66.410799], 7); // Centered on Puerto Rico
 
-        // Add tile layer (Map tiles)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Function to get color based on ADU property
+        var geojsonLayer; // To hold the GeoJSON layer
+
+        // Function to get color based on selected property value
         function getColor(value) {
-            if (value === 0) return "#ff0000"; // Red for no ADU
-            else if (value > 0 && value <= 10) return "#ffa500"; // Orange for low ADU
-            else return "#008000"; // Green for high ADU
+            if (value === 0) return "#ff0000"; // Red for no policy
+            else if (value > 0 && value <= 10) return "#ffa500"; // Orange for low values
+            else return "#008000"; // Green for higher values
         }
 
-        // Define style for each feature based on ADU value
-        function style(feature) {
+        // Define style based on selected policy value
+        function style(feature, selectedProperty) {
+            var value = feature.properties[selectedProperty];
             return {
-                color: getColor(feature.properties.ADU),
+                color: getColor(value),
                 weight: 1,
                 opacity: 1,
                 fillOpacity: 0.7
             };
         }
 
-        // Add GeoJSON data to the map
-        L.geoJSON(housing_policiesAU, {
-            style: style,  // Apply style function
-            onEachFeature: function (feature, layer) {
-                layer.bindPopup("<strong>" + feature.properties.NAME + "</strong><br>ADU: " + feature.properties.ADU);
+        // Function to update map based on selected policy
+        function updateMap(selectedProperty) {
+            if (geojsonLayer) {
+                geojsonLayer.clearLayers(); // Clear existing layer
             }
-        }).addTo(map);
+
+            geojsonLayer = L.geoJSON(housing_policiesAU, {
+                style: function (feature) {
+                    return style(feature, selectedProperty);
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup("<strong>" + feature.properties.NAME + "</strong><br>" +
+                        selectedProperty + ": " + feature.properties[selectedProperty]);
+                }
+            }).addTo(map);
+        }
+
+        // Initial map with the "ADU" property
+        updateMap("ADU");
+
+        // Change the map based on selected policy from the dropdown
+        document.getElementById('policy-select').addEventListener('change', function (e) {
+            var selectedPolicy = e.target.value;
+            updateMap(selectedPolicy);
+        });
     </script>
 </body>
 </html>
