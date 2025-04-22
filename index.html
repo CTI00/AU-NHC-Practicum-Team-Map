@@ -1,35 +1,47 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Housing Policies Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/1.3.0/leaflet.ajax.min.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
     <style>
-        #map { height: 600px; }
-        .highlighted { color: green; }
+        #map { height: 100vh; }
     </style>
 </head>
 <body>
-    <h1>Housing Policies Map</h1>
     <div id="map"></div>
+    <select id="policySelect">
+        <option value="ADU">ADU</option>
+        <option value="ARPA">ARPA</option>
+        <option value="Bond Caps">Bond Caps</option>
+        <option value="CCD">CCD</option>
+        <!-- Add other policies here -->
+    </select>
 
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Initialize the map
-        var map = L.map('map').setView([37.8, -96], 4); // centered over the US
+        var map = L.map('map').setView([37.8, -96], 4); // center map on the US
 
-        // Add OpenStreetMap base layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Function to set style based on the "ADU" policy (or any other policy you want to visualize)
-        function getStyle(feature) {
-            var policyValue = feature.properties.ADU; // You can change this to any policy like ARPA, Bond Caps, etc.
+        // Initialize geojson layer for the map
+        var geojsonLayer = L.geoJSON(null, {
+            onEachFeature: function (feature, layer) {
+                layer.bindPopup("<strong>State:</strong> " + feature.properties.NAME + "<br>" +
+                                "<strong>ADU:</strong> " + feature.properties.ADU + "<br>" +
+                                "<strong>ARPA:</strong> " + feature.properties.ARPA + "<br>" +
+                                "<strong>Bond Caps:</strong> " + feature.properties['Bond Caps']);
+            }
+        }).addTo(map);
+
+        // Function to style GeoJSON based on selected policy
+        function getStyle(feature, selectedPolicy) {
+            var policyValue = feature.properties[selectedPolicy];
             return {
-                fillColor: policyValue === 1 ? 'green' : 'red', // Color by policy value
+                fillColor: policyValue === 1 ? 'green' : 'red', // green for 1, red for 0
                 weight: 1,
                 opacity: 1,
                 color: 'black',
@@ -38,23 +50,35 @@
             };
         }
 
-        // Add GeoJSON layer and highlight states
-        var geojsonLayer = L.geoJSON(null, {
-            style: getStyle,
-            onEachFeature: function (feature, layer) {
-                // Bind a popup with the name of the state and the policy values
-                layer.bindPopup("<strong>State:</strong> " + feature.properties.NAME + "<br>" +
-                                "<strong>ADU:</strong> " + feature.properties.ADU + "<br>" +
-                                "<strong>ARPA:</strong> " + feature.properties.ARPA + "<br>" +
-                                "<strong>Bond Caps:</strong> " + feature.properties['Bond Caps']);
-            }
-        }).addTo(map);
+        // Function to load GeoJSON data and apply styles
+        function loadGeoJSONData(selectedPolicy) {
+            fetch('https://raw.githubusercontent.com/username/repository/branch/housing_policies.json')
+                .then(response => response.json())
+                .then(data => {
+                    geojsonLayer.clearLayers(); // Clear any existing data
+                    L.geoJSON(data, {
+                        style: function(feature) {
+                            return getStyle(feature, selectedPolicy);
+                        },
+                        onEachFeature: function (feature, layer) {
+                            layer.bindPopup("<strong>State:</strong> " + feature.properties.NAME + "<br>" +
+                                            "<strong>ADU:</strong> " + feature.properties.ADU + "<br>" +
+                                            "<strong>ARPA:</strong> " + feature.properties.ARPA + "<br>" +
+                                            "<strong>Bond Caps:</strong> " + feature.properties['Bond Caps']);
+                        }
+                    }).addTo(map);
+                })
+                .catch(error => console.error('Error loading GeoJSON:', error));
+        }
 
-        // Load the GeoJSON data from housing_policies.json (make sure this file is in the same directory)
-        fetch('housing_policies.json')
-            .then(response => response.json())
-            .then(data => geojsonLayer.addData(data));
+        // Initial load with default policy (e.g., "ADU")
+        loadGeoJSONData('ADU');
 
+        // Change policy on selection change
+        document.getElementById('policySelect').addEventListener('change', function() {
+            var selectedPolicy = this.value;
+            loadGeoJSONData(selectedPolicy); // Reload GeoJSON with selected policy
+        });
     </script>
 </body>
 </html>
